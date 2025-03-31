@@ -1,9 +1,19 @@
-#define  _GNU_SOURCE
 #include "table.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// TODO: custom allocator
+#define FREE(x) free(x)
+#define CALLOC(capacity, elemsize) calloc((capacity), (elemsize))
+
+static char* _strdup(const char* str) {
+    int size = strlen(str) + 1;
+    char* new_str = malloc(size);
+    memcpy(new_str, str, size);
+    return new_str;
+}
 
 uint32_t FNV_1a(const char* key) {
     uint32_t hash = 2166136261u;
@@ -23,27 +33,23 @@ static void hashtable_str_grow(HashTableStr* table) {
         table->capacity *= 2;
     }
     BucketStr* old_buckets = table->buckets;
-    table->buckets = calloc(table->capacity, sizeof *table->buckets);
+    table->buckets = CALLOC(table->capacity, sizeof *table->buckets);
     if (table->buckets == NULL) {
         printf("ERROR: out of memory, aborting.\n");
         exit(1);
     }
 
-    /*for (uint32_t i = 0; i < table->capacity; i++) {*/
-    /*    new_buckets[i].key = NULL;*/
-    /*    new_buckets[i].value = NULL;*/
-    /*}*/
-
     // create new table from scratch (copy old elements into new table)
+    table->count = 0;
     for (uint32_t i = 0; i < old_capacity; i++) {
         BucketStr* bucket = &old_buckets[i];
         if (bucket->key != NULL) {
             hashtable_str_insert(table, bucket->key, bucket->value);
-            free(bucket->key); // TODO: better way
+            FREE(bucket->key);
         }
     }
 
-    free(old_buckets);
+    FREE(old_buckets);
 }
 
 void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key)) {
@@ -64,66 +70,96 @@ void hashtable_str_free(HashTableStr* table) {
     for (uint32_t i = 0; i < table->capacity; i++) {
         BucketStr* bucket = &table->buckets[i];
         if (table->buckets[i].key != NULL)
-            free(bucket->key);
+            FREE(bucket->key);
     }
-    free(table->buckets);
+    FREE(table->buckets);
 }
 
-BucketStr* hashtable_str_find(HashTableStr* table, const char* key) {
-    uint32_t hash = table->hash_func(key);
-    uint32_t index = hash & (table->capacity - 1); // works for capacity which is a power of 2
+static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint32_t hash, uint32_t length) {
+    uint32_t index = hash & (table->capacity - 1); // mod of 2^n is equal to the last n bits
 
-    while (table->buckets[index].key != NULL && strcmp(table->buckets[index].key, key) != 0) {
+    for (;;) {
+        BucketStr* tombstone = NULL;
+        BucketStr* bucket = &table->buckets[index];
+
+        if (bucket->key == NULL) {
+            if (bucket->value == NULL) {
+                return tombstone == NULL ? bucket : tombstone;
+            } else {
+                if (tombstone == NULL) tombstone = bucket;
+            }
+        } else if (
+                bucket->key_length == length &&
+                bucket->hash == hash &&
+                memcmp(bucket->key, key, length) == 0
+                ) {
+            return bucket;
+        }
+
+#if DEBUG
+        table->num_collisions++;
+#endif
+
+        // linear probing
         index = (index + 1) & (table->capacity - 1);
     }
-
-    BucketStr* bucket = &table->buckets[index];
-    if (bucket->value == NULL)
-        return NULL;
-
-    return bucket;
 }
 
-void hashtable_str_insert(HashTableStr* table, const char* key, const void* value) {
+bool hashtable_str_remove(HashTableStr* table, const char* key) {
+    if (table->count == 0) 
+        return false;
+    BucketStr* bucket = hashtable_str_find(table, key);
+    if (bucket->key == NULL)
+        return false;
+
+    // place tombstone
+    bucket->key = NULL;
+    bucket->value = (char*)1;
+    return true;
+}
+
+bool hashtable_str_get(HashTableStr* table, const char* key, void** value) {
+    if (table->count == 0)
+        return false;
+    uint32_t hash = table->hash_func(key);
+    uint32_t key_length = strlen(key);
+    BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
+    if (bucket->key == NULL)
+        return false;
+    *value = bucket->value;
+    return true;
+}
+
+bool hashtable_str_set(HashTableStr* table, const char* key, void* value) {
     if (((table->count + 1) / table->capacity) * 100 >= table->load_factor) {
         // expand table
         hashtable_str_grow(table);
     }
 
     uint32_t hash = table->hash_func(key);
-    uint32_t index = hash & (table->capacity - 1);
+    uint32_t key_length = strlen(key);
+    BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
 
-    while (table->buckets[index].key != NULL && table->buckets[index].value != NULL && strcmp(table->buckets[index].key, key) != 0) {
-        index = (index + 1) & (table->capacity - 1);
-#if DEBUG
-        table->num_collisions++;
-#endif
-    }
-
-    if (table->buckets[index].key == NULL) {
+    if (bucket->key == NULL && bucket->value == NULL) {
         // new item
         table->count++;
     }
-    BucketStr* bucket = &table->buckets[index];
     
     // insert/set new value
-    /*bucket->hash = hash;*/
-    bucket->key = strdup(key);
+    if (bucket->key != NULL)
+        FREE(bucket->key);
+    bucket->key = _strdup(key);
+    bucket->hash = hash;
+    bucket->key_length = key_length;
     bucket->value = value;
 }
 
-void hashtable_str_remove(HashTableStr* table, const char* key) {
-    BucketStr* bucket = hashtable_str_find(table, key);
-    if (bucket != NULL) {
-        bucket->value = NULL;
-    }
-}
 
 void hashtable_str_print(HashTableStr* table) {
     printf("===== TABLE =====\n");
     for (uint32_t i = 0; i < table->capacity; i++) {
         BucketStr* bucket = &table->buckets[i];
-        if (bucket->key != NULL && bucket->value != NULL)
+        if (bucket->key != NULL)
             printf("%s: %s\n", bucket->key, (const char*)bucket->value);
     }
     printf("=================\n");

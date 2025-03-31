@@ -2,13 +2,15 @@
 #define TABLE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define DEBUG 1
 
 typedef struct {
-    /*uint32_t hash;*/
+    uint32_t hash;
+    uint32_t key_length;
     char* key; // owns the key (and has to free it)
-    const void* value;
+    void* value; // should also own the value
 } BucketStr;
 
 typedef struct {
@@ -28,9 +30,9 @@ uint32_t FNV_1a(const char* key);
 // table methods
 void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key));
 void hashtable_str_free(HashTableStr* table);
-void hashtable_str_insert(HashTableStr* table, const char* key, const void* value);
-BucketStr* hashtable_str_find(HashTableStr* table, const char* key);
-void hashtable_str_remove(HashTableStr* table, const char* key);
+bool hashtable_str_remove(HashTableStr* table, const char* key);
+bool hashtable_str_get(HashTableStr* table, const char* key, void* value);
+bool hashtable_str_set(HashTableStr* table, const char* key, void* value);
 void hashtable_str_print(HashTableStr* table);
 
 #endif // TABLE_H
