@@ -7,6 +7,8 @@
 // TODO: custom allocator
 #define FREE(x) free(x)
 #define CALLOC(capacity, elemsize) calloc((capacity), (elemsize))
+#define CALC_LOAD_FACTOR(table) (int)(((float)((table)->count + 1) / (table)->capacity) * 100)
+
 
 static char* _strdup(const char* str) {
     int size = strlen(str) + 1;
@@ -44,7 +46,7 @@ static void hashtable_str_grow(HashTableStr* table) {
     for (uint32_t i = 0; i < old_capacity; i++) {
         BucketStr* bucket = &old_buckets[i];
         if (bucket->key != NULL) {
-            hashtable_str_insert(table, bucket->key, bucket->value);
+            hashtable_str_set(table, bucket->key, bucket->value);
             FREE(bucket->key);
         }
     }
@@ -64,6 +66,9 @@ void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* k
         table->hash_func = hash_func;
     }
     hashtable_str_grow(table);
+#if DEBUG
+    table->num_collisions = 0;
+#endif
 }
 
 void hashtable_str_free(HashTableStr* table) {
@@ -108,7 +113,9 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
 bool hashtable_str_remove(HashTableStr* table, const char* key) {
     if (table->count == 0) 
         return false;
-    BucketStr* bucket = hashtable_str_find(table, key);
+    uint32_t hash = table->hash_func(key);
+    uint32_t key_length = strlen(key);
+    BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
     if (bucket->key == NULL)
         return false;
 
@@ -130,9 +137,8 @@ bool hashtable_str_get(HashTableStr* table, const char* key, void** value) {
     return true;
 }
 
-bool hashtable_str_set(HashTableStr* table, const char* key, void* value) {
-    if (((table->count + 1) / table->capacity) * 100 >= table->load_factor) {
-        // expand table
+void hashtable_str_set(HashTableStr* table, const char* key, void* value) {
+    if (CALC_LOAD_FACTOR(table) >= table->load_factor) {
         hashtable_str_grow(table);
     }
 

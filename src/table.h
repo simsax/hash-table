@@ -31,8 +31,8 @@ uint32_t FNV_1a(const char* key);
 void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key));
 void hashtable_str_free(HashTableStr* table);
 bool hashtable_str_remove(HashTableStr* table, const char* key);
-bool hashtable_str_get(HashTableStr* table, const char* key, void* value);
-bool hashtable_str_set(HashTableStr* table, const char* key, void* value);
+bool hashtable_str_get(HashTableStr* table, const char* key, void** value);
+void hashtable_str_set(HashTableStr* table, const char* key, void* value);
 void hashtable_str_print(HashTableStr* table);
 
 #endif // TABLE_H
