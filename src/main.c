@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <ctype.h>
+#include <string.h>
 
 static void value_print(char* value, const char* key) {
     if (value == NULL) {
@@ -114,11 +116,46 @@ static char* read_all_file(const char* filepath) {
     return content;
 }
 
+typedef struct {
+    char* str;
+    uint32_t length;
+} TokenStr;
+
+typedef struct {
+    char* start;
+    uint32_t cur_ix;
+} Tokenizer;
+
+static void tokenizer_init(Tokenizer* tokenizer, char* source) {
+    tokenizer->start = source;
+    tokenizer->cur_ix = 0;
+}
+
+static TokenStr tokenize_str(Tokenizer* tokenizer, const char* source) {
+    uint32_t start_ix = tokenizer->cur_ix;
+    while (!isspace(source[tokenizer->cur_ix]))
+        tokenizer->cur_ix++;
+    uint32_t end_ix = tokenizer->cur_ix;
+    while (isspace(source[tokenizer->cur_ix]))
+        tokenizer->cur_ix++;
+    uint32_t len = end_ix - start_ix;
+    char* buf = malloc(len + 1);
+    memcpy(buf, &source[start_ix],len);
+    return (TokenStr) {
+        .str = buf,
+        .length = len
+    };
+}
+
 static void test_str_processing(void) {
-    // TODO: read entire file into memory
-    // split by spaces
-    char* file_content = read_all_file("./shakespeare.txt");
-    printf("%s", file_content);
+    char* content = read_all_file("./shakespeare.txt");
+    Tokenizer tokenizer;
+    tokenizer_init(&tokenizer, content);
+
+    for (int i = 0; i < 100; i++) {
+        TokenStr token = tokenize_str(&tokenizer, content);
+        // printf("  %d => %s\n", i + 1, token.str);
+    }
 }
 
 int main(void)
