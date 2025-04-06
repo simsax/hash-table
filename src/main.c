@@ -15,83 +15,83 @@ static void value_print(char* value, const char* key) {
     }
 }
 
-static void test_table(void) {
-    HashTableStr table;
-    hashtable_str_init(&table, NULL);
-
-    char foo[] = "foo";
-    char bar[] = "bar";
-
-    hashtable_str_set(&table, foo, &foo);
-    hashtable_str_set(&table, bar, &bar);
-
-    char* value = NULL;
-    hashtable_str_get(&table, "foo", (void**)&value);
-    value_print(value, "foo");
-
-    value = NULL;
-    hashtable_str_get(&table, "bar", (void**)&value);
-    value_print(value, "bar");
-
-    value = NULL;
-    hashtable_str_get(&table, "baz", (void**)&value);
-    value_print(value, "baz");
-
-    char baz[] = "baz";
-    value = NULL;
-    hashtable_str_set(&table, baz, baz);
-    hashtable_str_get(&table, "baz", (void**)&value);
-    value_print(value, "baz");
-
-    value = NULL;
-    hashtable_str_remove(&table, baz);
-    hashtable_str_get(&table, "baz", (void**)&value);
-    value_print(value, "baz");
-
-#if DEBUG
-    printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
-#endif
-
-    hashtable_str_free(&table);
-}
-
-static void test_table_shakespeare(void) {
-    HashTableStr table;
-    hashtable_str_init(&table, NULL);
-
-    FILE *fp = fopen("./shakespeare.txt", "r");
-    if (!fp) {
-       printf("ERROR: could not open file\n");
-       exit(1);
-    }
-
-    char* line = NULL;
-    long nread;
-    size_t len = 0;
-    while ((nread = getline(&line, &len, fp)) != -1) {
-        hashtable_str_set(&table, line, line);
-        char* value;
-        bool found = hashtable_str_get(&table, line, (void**)&value);
-        /*hashtable_str_print(&table);*/
-#if DEBUG
-        printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
-#endif
-        assert(found);
-    }
-
-    // read again, test that all the lines are in the hash table
-    rewind(fp);
-    while ((nread = getline(&line, &len, fp)) != -1) {
-        char* value;
-        bool found = hashtable_str_get(&table, line, (void**)&value);
-        assert(found);
-    }
-
-#if DEBUG
-    printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
-#endif
-    hashtable_str_free(&table);
-}
+// static void test_table(void) {
+//     HashTableStr table;
+//     hashtable_str_init(&table, NULL);
+//
+//     char foo[] = "foo";
+//     char bar[] = "bar";
+//
+//     hashtable_str_set(&table, foo, &foo);
+//     hashtable_str_set(&table, bar, &bar);
+//
+//     char* value = NULL;
+//     hashtable_str_get(&table, "foo", (void**)&value);
+//     value_print(value, "foo");
+//
+//     value = NULL;
+//     hashtable_str_get(&table, "bar", (void**)&value);
+//     value_print(value, "bar");
+//
+//     value = NULL;
+//     hashtable_str_get(&table, "baz", (void**)&value);
+//     value_print(value, "baz");
+//
+//     char baz[] = "baz";
+//     value = NULL;
+//     hashtable_str_set(&table, baz, baz);
+//     hashtable_str_get(&table, "baz", (void**)&value);
+//     value_print(value, "baz");
+//
+//     value = NULL;
+//     hashtable_str_remove(&table, baz);
+//     hashtable_str_get(&table, "baz", (void**)&value);
+//     value_print(value, "baz");
+//
+// #if DEBUG
+//     printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
+// #endif
+//
+//     hashtable_str_free(&table);
+// }
+//
+// static void test_table_shakespeare(void) {
+//     HashTableStr table;
+//     hashtable_str_init(&table, NULL);
+//
+//     FILE *fp = fopen("./shakespeare.txt", "r");
+//     if (!fp) {
+//        printf("ERROR: could not open file\n");
+//        exit(1);
+//     }
+//
+//     char* line = NULL;
+//     long nread;
+//     size_t len = 0;
+//     while ((nread = getline(&line, &len, fp)) != -1) {
+//         hashtable_str_set(&table, line, line);
+//         char* value;
+//         bool found = hashtable_str_get(&table, line, (void**)&value);
+//         /*hashtable_str_print(&table);*/
+// #if DEBUG
+//         printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
+// #endif
+//         assert(found);
+//     }
+//
+//     // read again, test that all the lines are in the hash table
+//     rewind(fp);
+//     while ((nread = getline(&line, &len, fp)) != -1) {
+//         char* value;
+//         bool found = hashtable_str_get(&table, line, (void**)&value);
+//         assert(found);
+//     }
+//
+// #if DEBUG
+//     printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
+// #endif
+//     hashtable_str_free(&table);
+// }
 
 // reads all file into memory, caller should free it
 static char* read_all_file(const char* filepath) {
@@ -147,22 +147,32 @@ static TokenStr tokenize_str(Tokenizer* tokenizer, const char* source) {
     };
 }
 
-static void test_str_processing(void) {
+static void test_word_count(void) {
     char* content = read_all_file("./shakespeare.txt");
     Tokenizer tokenizer;
     tokenizer_init(&tokenizer, content);
+    HashTableStr table;
+    hashtable_str_init(&table, NULL);
 
-    for (int i = 0; i < 100; i++) {
+    // for (int i = 0; i < 100; i++) {
+    for (;;) {
         TokenStr token = tokenize_str(&tokenizer, content);
         // printf("  %d => %s\n", i + 1, token.str);
+
+        Value value = { .type = VAL_INT, .as.val_int = 0 };
+        hashtable_str_get(&table, token.str, &value);
+        value.as.val_int++;
+        hashtable_str_set(&table, token.str, value);
     }
+
+    hashtable_str_print(&table);
 }
 
 int main(void)
 {
     // test_table_shakespeare();
     // test_table();
-    test_str_processing();
+    test_word_count();
     return 0;
 }
 

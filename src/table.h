@@ -6,11 +6,27 @@
 
 #define DEBUG 1
 
+// typedef union {
+// } KeyType;
+
+typedef enum {
+    VAL_VOID,
+    VAL_INT
+} ValueType;
+
+typedef struct {
+    ValueType type;
+    union {
+        void* val_void;
+        int val_int;
+    } as;
+} Value;
+
 typedef struct {
     uint32_t hash;
     uint32_t key_length;
     char* key; // owns the key (and has to free it)
-    void* value; // should also own the value
+    Value value; // should also own the value
 } BucketStr;
 
 typedef struct {
@@ -31,8 +47,8 @@ uint32_t FNV_1a(const char* key);
 void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key));
 void hashtable_str_free(HashTableStr* table);
 bool hashtable_str_remove(HashTableStr* table, const char* key);
-bool hashtable_str_get(HashTableStr* table, const char* key, void** value);
-void hashtable_str_set(HashTableStr* table, const char* key, void* value);
+bool hashtable_str_get(HashTableStr* table, const char* key, Value* value);
+void hashtable_str_set(HashTableStr* table, const char* key, Value value);
 void hashtable_str_print(HashTableStr* table);
 
 #endif // TABLE_H

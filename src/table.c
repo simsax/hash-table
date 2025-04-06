@@ -88,7 +88,7 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
         BucketStr* bucket = &table->buckets[index];
 
         if (bucket->key == NULL) {
-            if (bucket->value == NULL) {
+            if (bucket->value.as.val_void == NULL) {
                 return tombstone == NULL ? bucket : tombstone;
             } else {
                 if (tombstone == NULL) tombstone = bucket;
@@ -121,11 +121,11 @@ bool hashtable_str_remove(HashTableStr* table, const char* key) {
 
     // place tombstone
     bucket->key = NULL;
-    bucket->value = (char*)1;
+    bucket->value.as.val_int = 1;
     return true;
 }
 
-bool hashtable_str_get(HashTableStr* table, const char* key, void** value) {
+bool hashtable_str_get(HashTableStr* table, const char* key, Value* value) {
     if (table->count == 0)
         return false;
     uint32_t hash = table->hash_func(key);
@@ -137,7 +137,7 @@ bool hashtable_str_get(HashTableStr* table, const char* key, void** value) {
     return true;
 }
 
-void hashtable_str_set(HashTableStr* table, const char* key, void* value) {
+void hashtable_str_set(HashTableStr* table, const char* key, Value value) {
     if (CALC_LOAD_FACTOR(table) >= table->load_factor) {
         hashtable_str_grow(table);
     }
@@ -146,7 +146,7 @@ void hashtable_str_set(HashTableStr* table, const char* key, void* value) {
     uint32_t key_length = strlen(key);
     BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
 
-    if (bucket->key == NULL && bucket->value == NULL) {
+    if (bucket->key == NULL && bucket->value.as.val_void == NULL) {
         // new item
         table->count++;
     }
@@ -160,13 +160,15 @@ void hashtable_str_set(HashTableStr* table, const char* key, void* value) {
     bucket->value = value;
 }
 
-
 void hashtable_str_print(HashTableStr* table) {
     printf("===== TABLE =====\n");
     for (uint32_t i = 0; i < table->capacity; i++) {
         BucketStr* bucket = &table->buckets[i];
-        if (bucket->key != NULL)
-            printf("%s: %s\n", bucket->key, (const char*)bucket->value);
+        if (bucket->key != NULL) {
+            if (bucket->value.type == VAL_INT)
+                printf("%s: %d\n", bucket->key, bucket->value.as.val_int);
+        }
     }
     printf("=================\n");
 }
+
