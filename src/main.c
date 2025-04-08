@@ -1,5 +1,4 @@
 #include <stddef.h>
-#define  _GNU_SOURCE
 #include "table.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -118,7 +117,7 @@ static char* read_all_file(const char* filepath, size_t* file_length) {
 }
 
 typedef struct {
-    char* str;
+    const char* start;
     uint32_t length;
 } TokenStr;
 
@@ -137,23 +136,28 @@ static void tokenizer_init(Tokenizer* tokenizer, char* source, size_t file_lengt
 static TokenStr tokenize_str(Tokenizer* tokenizer, const char* source) {
     if (tokenizer->cur_ix == tokenizer->file_length) {
         return (TokenStr) {
-            .str = NULL,
+            .start = NULL,
             .length = 0
         };
     }
     uint32_t start_ix = tokenizer->cur_ix;
+    const char* start = &source[start_ix];
     while (!isspace(source[tokenizer->cur_ix]))
         tokenizer->cur_ix++;
     uint32_t end_ix = tokenizer->cur_ix;
     while (isspace(source[tokenizer->cur_ix]))
         tokenizer->cur_ix++;
     uint32_t len = end_ix - start_ix;
-    char* buf = malloc(len + 1);
-    memcpy(buf, &source[start_ix],len);
     return (TokenStr) {
-        .str = buf,
+        .start = start,
         .length = len
     };
+}
+
+static void print_token(TokenStr token) {
+    for (size_t i = 0; i < token.length; i++) {
+        putchar(token.start[i]);
+    }
 }
 
 static void test_word_count(void) {
@@ -164,22 +168,23 @@ static void test_word_count(void) {
     HashTableStr table;
     hashtable_str_init(&table, NULL);
 
-    // for (int i = 0; i < 100; i++) {
-    for (;;) {
+    // for (;;) {
+    for (int i = 0; i < 100; i++) {
         TokenStr token = tokenize_str(&tokenizer, content);
-        if (token.str == NULL) {
+        if (token.start == NULL) {
             break;
         }
-        printf("%s\n", token.str);
-        // printf("  %d => %s\n", i + 1, token.str);
+        // print_token(token);
+        // puts("");
 
         Value value = { .type = VAL_INT, .as.val_int = 0 };
-        hashtable_str_get(&table, token.str, &value);
+        hashtable_str_get(&table, token.start, &value);
         value.as.val_int++;
-        hashtable_str_set(&table, token.str, value);
+        hashtable_str_set(&table, token.start, token.length, value);
     }
 
     // hashtable_str_print(&table);
+    free(content);
 }
 
 int main(void)

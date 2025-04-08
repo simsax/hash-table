@@ -10,8 +10,8 @@
 #define CALC_LOAD_FACTOR(table) (int)(((float)((table)->count + 1) / (table)->capacity) * 100)
 
 
-static char* _strdup(const char* str) {
-    int size = strlen(str) + 1;
+static char* _strdup(const char* str, size_t length) {
+    int size = length + 1;
     char* new_str = malloc(size);
     memcpy(new_str, str, size);
     return new_str;
@@ -46,8 +46,7 @@ static void hashtable_str_grow(HashTableStr* table) {
     for (uint32_t i = 0; i < old_capacity; i++) {
         BucketStr* bucket = &old_buckets[i];
         if (bucket->key != NULL) {
-            hashtable_str_set(table, bucket->key, bucket->value);
-            FREE(bucket->key);
+            hashtable_str_set(table, bucket->key, bucket->key_length, bucket->value);
         }
     }
 
@@ -72,11 +71,6 @@ void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* k
 }
 
 void hashtable_str_free(HashTableStr* table) {
-    for (uint32_t i = 0; i < table->capacity; i++) {
-        BucketStr* bucket = &table->buckets[i];
-        if (table->buckets[i].key != NULL)
-            FREE(bucket->key);
-    }
     FREE(table->buckets);
 }
 
@@ -137,13 +131,12 @@ bool hashtable_str_get(HashTableStr* table, const char* key, Value* value) {
     return true;
 }
 
-void hashtable_str_set(HashTableStr* table, const char* key, Value value) {
+void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, Value value) {
     if (CALC_LOAD_FACTOR(table) >= table->load_factor) {
         hashtable_str_grow(table);
     }
 
     uint32_t hash = table->hash_func(key);
-    uint32_t key_length = strlen(key);
     BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
 
     if (bucket->key == NULL && bucket->value.as.val_void == NULL) {
@@ -152,9 +145,8 @@ void hashtable_str_set(HashTableStr* table, const char* key, Value value) {
     }
     
     // insert/set new value
-    if (bucket->key != NULL)
-        FREE(bucket->key);
-    bucket->key = _strdup(key);
+    bucket->key = key;
+    // bucket->key = _strdup(key, key_length);
     bucket->hash = hash;
     bucket->key_length = key_length;
     bucket->value = value;

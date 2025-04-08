@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define DEBUG 1
 
@@ -24,9 +25,9 @@ typedef struct {
 
 typedef struct {
     uint32_t hash;
-    uint32_t key_length;
-    char* key; // owns the key (and has to free it)
-    Value value; // should also own the value
+    size_t key_length;
+    const char* key;
+    Value value;
 } BucketStr;
 
 typedef struct {
@@ -48,7 +49,7 @@ void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* k
 void hashtable_str_free(HashTableStr* table);
 bool hashtable_str_remove(HashTableStr* table, const char* key);
 bool hashtable_str_get(HashTableStr* table, const char* key, Value* value);
-void hashtable_str_set(HashTableStr* table, const char* key, Value value);
+void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, Value value);
 void hashtable_str_print(HashTableStr* table);
 
 #endif // TABLE_H
