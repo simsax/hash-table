@@ -1,3 +1,4 @@
+#include <stddef.h>
 #define  _GNU_SOURCE
 #include "table.h"
 #include <stdint.h>
@@ -94,22 +95,22 @@ static void value_print(char* value, const char* key) {
 // }
 
 // reads all file into memory, caller should free it
-static char* read_all_file(const char* filepath) {
+static char* read_all_file(const char* filepath, size_t* file_length) {
     FILE *fp = fopen(filepath, "r");
     if (!fp) {
        printf("ERROR: could not open file\n");
        exit(1);
     }
     fseek(fp, 0, SEEK_END);
-    size_t file_size = ftell(fp);
-    char* content = malloc(file_size + 1);
+    *file_length = ftell(fp);
+    char* content = malloc(*file_length + 1);
     if (content == NULL) {
         printf("Error: out of memory.\n");
         exit(1);
     }
     rewind(fp);
-    size_t ret = fread(content, 1, file_size, fp);
-    if (ret != file_size) {
+    size_t ret = fread(content, 1, *file_length, fp);
+    if (ret != *file_length) {
         printf("Error: fread failed, ret = %zu\n", ret);
         exit(1);
     }
@@ -123,15 +124,23 @@ typedef struct {
 
 typedef struct {
     char* start;
-    uint32_t cur_ix;
+    size_t file_length;
+    size_t cur_ix;
 } Tokenizer;
 
-static void tokenizer_init(Tokenizer* tokenizer, char* source) {
+static void tokenizer_init(Tokenizer* tokenizer, char* source, size_t file_length) {
     tokenizer->start = source;
     tokenizer->cur_ix = 0;
+    tokenizer->file_length = file_length;
 }
 
 static TokenStr tokenize_str(Tokenizer* tokenizer, const char* source) {
+    if (tokenizer->cur_ix == tokenizer->file_length) {
+        return (TokenStr) {
+            .str = NULL,
+            .length = 0
+        };
+    }
     uint32_t start_ix = tokenizer->cur_ix;
     while (!isspace(source[tokenizer->cur_ix]))
         tokenizer->cur_ix++;
@@ -148,15 +157,20 @@ static TokenStr tokenize_str(Tokenizer* tokenizer, const char* source) {
 }
 
 static void test_word_count(void) {
-    char* content = read_all_file("./shakespeare.txt");
+    size_t file_length = 0;
+    char* content = read_all_file("./shakespeare.txt", &file_length);
     Tokenizer tokenizer;
-    tokenizer_init(&tokenizer, content);
+    tokenizer_init(&tokenizer, content, file_length);
     HashTableStr table;
     hashtable_str_init(&table, NULL);
 
     // for (int i = 0; i < 100; i++) {
     for (;;) {
         TokenStr token = tokenize_str(&tokenizer, content);
+        if (token.str == NULL) {
+            break;
+        }
+        printf("%s\n", token.str);
         // printf("  %d => %s\n", i + 1, token.str);
 
         Value value = { .type = VAL_INT, .as.val_int = 0 };
@@ -165,7 +179,7 @@ static void test_word_count(void) {
         hashtable_str_set(&table, token.str, value);
     }
 
-    hashtable_str_print(&table);
+    // hashtable_str_print(&table);
 }
 
 int main(void)
