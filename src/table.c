@@ -17,10 +17,19 @@ static char* _strdup(const char* str, size_t length) {
     return new_str;
 }
 
-uint32_t FNV_1a(const char* key) {
+// uint32_t FNV_1a(const char* key) {
+//     uint32_t hash = 2166136261u;
+//     int length = strlen(key);
+//     for (int i = 0; i < length; i++) {
+//         hash ^= (uint8_t)key[i];
+//         hash *= 16777619;
+//     }
+//     return hash;
+// }
+
+uint32_t FNV_1a(const char* key, size_t key_length) {
     uint32_t hash = 2166136261u;
-    int length = strlen(key);
-    for (int i = 0; i < length; i++) {
+    for (size_t i = 0; i < key_length; i++) {
         hash ^= (uint8_t)key[i];
         hash *= 16777619;
     }
@@ -30,7 +39,7 @@ uint32_t FNV_1a(const char* key) {
 static void hashtable_str_grow(HashTableStr* table) {
     uint32_t old_capacity = table->capacity;
     if (table->capacity == 0) {
-        table->capacity = 16;
+        table->capacity = 8;
     } else {
         table->capacity *= 2;
     }
@@ -53,7 +62,7 @@ static void hashtable_str_grow(HashTableStr* table) {
     FREE(old_buckets);
 }
 
-void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key)) {
+void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key, size_t key_length)) {
     table->count = 0;
     table->capacity = 0;
     table->buckets = NULL;
@@ -106,11 +115,10 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
     }
 }
 
-bool hashtable_str_remove(HashTableStr* table, const char* key) {
+bool hashtable_str_remove(HashTableStr* table, const char* key, size_t key_length) {
     if (table->count == 0) 
         return false;
-    uint32_t hash = table->hash_func(key);
-    uint32_t key_length = strlen(key);
+    uint32_t hash = table->hash_func(key, key_length);
     BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
     if (bucket->key == NULL)
         return false;
@@ -121,11 +129,10 @@ bool hashtable_str_remove(HashTableStr* table, const char* key) {
     return true;
 }
 
-bool hashtable_str_get(HashTableStr* table, const char* key, Value* value) {
+bool hashtable_str_get(HashTableStr* table, const char* key, size_t key_length, Value* value) {
     if (table->count == 0)
         return false;
-    uint32_t hash = table->hash_func(key);
-    uint32_t key_length = strlen(key);
+    uint32_t hash = table->hash_func(key, key_length);
     BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
     if (bucket->key == NULL)
         return false;
@@ -138,7 +145,7 @@ void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, 
         hashtable_str_grow(table);
     }
 
-    uint32_t hash = table->hash_func(key);
+    uint32_t hash = table->hash_func(key, key_length);
     BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
 
     if (bucket->key == NULL && bucket->value.as.val_void == NULL) {
@@ -168,6 +175,15 @@ void hashtable_str_print(HashTableStr* table) {
             print_key(bucket->key, bucket->key_length);
             if (bucket->value.type == VAL_INT) {
                 printf(": %d\n", bucket->value.as.val_int);
+            } else {
+                // assume it's a char pointer
+                printf(": %s\n", (const char*)bucket->value.as.val_void);
+            }
+        } else {
+            if (bucket->value.as.val_void == NULL) {
+                printf("NULL\n");
+            } else {
+                printf("[Tombstone]\n");
             }
         }
     }

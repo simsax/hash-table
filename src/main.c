@@ -26,32 +26,33 @@ static void test_table(void) {
     hashtable_str_set(&table, bar, 3, (Value) {.type=VAL_VOID, .as.val_void=bar});
 
     Value val = {.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "foo", &val);
+    hashtable_str_get(&table, "foo", 3, &val);
     value_print(val.as.val_void, "foo");
 
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "bar", &val);
+    hashtable_str_get(&table, "bar", 3, &val);
     value_print(val.as.val_void, "bar");
 
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "baz", &val);
+    hashtable_str_get(&table, "baz", 3, &val);
     value_print(val.as.val_void, "baz");
 
     char baz[] = "baz";
     hashtable_str_set(&table, baz, 3, (Value) {.type=VAL_VOID, .as.val_void=baz});
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "baz", &val);
+    hashtable_str_get(&table, "baz", 3, &val);
     value_print(val.as.val_void, "baz");
 
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_remove(&table, baz);
-    hashtable_str_get(&table, "baz", &val);
+    hashtable_str_remove(&table, baz, 3);
+    hashtable_str_get(&table, "baz", 3, &val);
     value_print(val.as.val_void, "baz");
 
 #if DEBUG
     printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
 #endif
 
+    hashtable_str_print(&table);
     hashtable_str_free(&table);
 }
 
@@ -189,29 +190,24 @@ static int compare_key(const void* b1, const void* b2) {
 
 static void test_word_count(void) {
     size_t file_length = 0;
-    char* content = read_all_file("./shakespeare_small.txt", &file_length);
+    char* content = read_all_file("./shakespeare.txt", &file_length);
     Tokenizer tokenizer;
     tokenizer_init(&tokenizer, content, file_length);
     HashTableStr table;
     hashtable_str_init(&table, NULL);
 
     for (;;) {
-    // for (int i = 0; i < 1000; i++) {
         TokenStr token = tokenize_str(&tokenizer, content);
         if (token.start == NULL) {
             break;
         }
-        // print_token(token);
-        // puts("");
 
         Value value = { .type = VAL_INT, .as.val_int = 0 };
-        hashtable_str_get(&table, token.start, &value);
+        hashtable_str_get(&table, token.start, token.length, &value);
         value.as.val_int++;
         hashtable_str_set(&table, token.start, token.length, value);
     }
 
-
-    // hashtable_str_print(&table);
     // num of keys
     int word_count = 0;
     for (size_t i = 0; i < table.capacity; i++) {
@@ -222,9 +218,9 @@ static void test_word_count(void) {
     printf("%d unique words\n", word_count);
 
     // print top 20 items
-    hashtable_sort(&table, compare_key);
-    int max_tops = 20;
-    for (int i = 0; i < max_tops; i++) {
+    hashtable_sort(&table, compare_descending);
+    size_t max_tops = 100;
+    for (size_t i = 0; i < max_tops && i < table.capacity; i++) {
         BucketStr* bucket = &table.buckets[i];
         if (bucket->key != NULL) {
             print_key(bucket->key, bucket->key_length);

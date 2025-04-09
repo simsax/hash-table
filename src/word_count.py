@@ -1,6 +1,6 @@
 def main():
     content = ""
-    with open("../shakespeare_small.txt", "r") as f:
+    with open("../shakespeare.txt", "r") as f:
         content = f.read()
 
     tokens = content.split()
@@ -14,9 +14,9 @@ def main():
 
     # print(counter)
     print(f"{len(counter.keys())} unique words")
-    print("Top 20:")
+    max = 100
+    print(f"Top {max}:")
     dict_items = list(counter.items())
-    max = 20
     tops = sorted(dict_items, key=lambda x: x[1], reverse=True)[:max]
     for top in tops:
         print(top)
