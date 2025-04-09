@@ -50,6 +50,10 @@ void hashtable_str_free(HashTableStr* table);
 bool hashtable_str_remove(HashTableStr* table, const char* key);
 bool hashtable_str_get(HashTableStr* table, const char* key, Value* value);
 void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, Value value);
+
+// debug
 void hashtable_str_print(HashTableStr* table);
+void hashtable_sort(HashTableStr* table, int (*compare)(const void* b1, const void* b2));
+void print_key(const char* key, size_t length);
 
 #endif // TABLE_H

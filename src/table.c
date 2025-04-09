@@ -81,6 +81,7 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
         BucketStr* tombstone = NULL;
         BucketStr* bucket = &table->buckets[index];
 
+        // printf("Before check\n");
         if (bucket->key == NULL) {
             if (bucket->value.as.val_void == NULL) {
                 return tombstone == NULL ? bucket : tombstone;
@@ -94,6 +95,7 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
                 ) {
             return bucket;
         }
+        // printf("After check\n");
 
 #if DEBUG
         table->num_collisions++;
@@ -152,15 +154,26 @@ void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, 
     bucket->value = value;
 }
 
+void print_key(const char* key, size_t length) {
+    for (size_t i = 0; i < length; i++) {
+        putchar(key[i]);
+    }
+}
+
 void hashtable_str_print(HashTableStr* table) {
     printf("===== TABLE =====\n");
     for (uint32_t i = 0; i < table->capacity; i++) {
         BucketStr* bucket = &table->buckets[i];
         if (bucket->key != NULL) {
-            if (bucket->value.type == VAL_INT)
-                printf("%s: %d\n", bucket->key, bucket->value.as.val_int);
+            print_key(bucket->key, bucket->key_length);
+            if (bucket->value.type == VAL_INT) {
+                printf(": %d\n", bucket->value.as.val_int);
+            }
         }
     }
     printf("=================\n");
 }
 
+void hashtable_sort(HashTableStr* table, int (*compare)(const void* b1, const void* b2)) {
+    qsort(table->buckets, table->capacity, sizeof *table->buckets, compare);
+}
