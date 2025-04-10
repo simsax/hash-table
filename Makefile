@@ -25,7 +25,7 @@ CFLAGS += -Wunused-but-set-parameter
 CFLAGS += -Wwrite-strings
 CFLAGS += -Wnull-dereference
 CFLAGS += -Wdouble-promotion
-# CFLAGS += -fanalyzer
+CFLAGS += -fanalyzer
 
 # when developing, turn this on
 CFLAGS += -Wno-unused-function
@@ -36,7 +36,7 @@ LDFLAGS = -lm
 
 all: debug
 debug: CFLAGS += -O0 -g3 # -fsanitize=address,undefined -fsanitize-trap
-# debug: LDFLAGS += -fsanitize=address
+debug: LDFLAGS += -fsanitize=address
 debug: $(BUILD_DIR)/$(TARGET_EXE)
 release: CFLAGS += -O3 -DNDEBUG
 release: $(BUILD_DIR)/$(TARGET_EXE)

@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 199309L // required for clock_gettime under c99
+
 #include <stddef.h>
 #include "table.h"
 #include <stdint.h>
@@ -6,6 +8,17 @@
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
+#include <time.h>
+
+static double clock_timestamp(void) {
+    // returns timestamp in seconds since unix epoch
+    struct timespec t;
+    if (clock_gettime(CLOCK_REALTIME, &t) == -1) {
+        printf("ERROR: clock_gettime failed\n");
+        exit(1);
+    }
+    return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
+}
 
 static void value_print(char* value, const char* key) {
     if (value == NULL) {
@@ -114,6 +127,10 @@ static char* read_all_file(const char* filepath, size_t* file_length) {
         printf("Error: fread failed, ret = %zu\n", ret);
         exit(1);
     }
+    if (fclose(fp) != 0) {
+        printf("Error: failed to close file\n");
+        exit(1);
+    }
     return content;
 }
 
@@ -174,20 +191,6 @@ static int compare_descending(const void* b1, const void* b2) {
     return ((const BucketStr*)b2)->value.as.val_int - ((const BucketStr*)b1)->value.as.val_int;
 }
 
-static int compare_key(const void* b1, const void* b2) {
-    const BucketStr* b1_str = (const BucketStr*)b1;
-    const BucketStr* b2_str = (const BucketStr*)b2;
-
-    if (b1_str->key == NULL && b2_str->key == NULL)
-        return 0;
-    else if (b1_str->key == NULL)
-        return 1;
-    else
-        return -1;
-
-    return strncmp(b2_str->key, b1_str->key, b1_str->key_length);
-}
-
 static void test_word_count(void) {
     size_t file_length = 0;
     char* content = read_all_file("./shakespeare.txt", &file_length);
@@ -196,6 +199,7 @@ static void test_word_count(void) {
     HashTableStr table;
     hashtable_str_init(&table, NULL);
 
+    double start_ts = clock_timestamp();
     for (;;) {
         TokenStr token = tokenize_str(&tokenizer, content);
         if (token.start == NULL) {
@@ -207,6 +211,7 @@ static void test_word_count(void) {
         value.as.val_int++;
         hashtable_str_set(&table, token.start, token.length, value);
     }
+    double end_ts = clock_timestamp();
 
     // num of keys
     int word_count = 0;
@@ -217,6 +222,7 @@ static void test_word_count(void) {
     }
     printf("%d unique words\n", word_count);
 
+#if 0
     // print top 20 items
     hashtable_sort(&table, compare_descending);
     size_t max_tops = 100;
@@ -229,8 +235,16 @@ static void test_word_count(void) {
             }
         }
     }
+#endif
+
+    printf("Elapsed: %fs\n", end_ts - start_ts);
+
+#if DEBUG
+    printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
+#endif
 
     free(content);
+    hashtable_str_free(&table);
 }
 
 int main(void)

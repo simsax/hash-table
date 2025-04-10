@@ -86,6 +86,7 @@ void hashtable_str_free(HashTableStr* table) {
 static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint32_t hash, uint32_t length) {
     uint32_t index = hash & (table->capacity - 1); // mod of 2^n is equal to the last n bits
 
+    int num_iterations = 0;
     for (;;) {
         BucketStr* tombstone = NULL;
         BucketStr* bucket = &table->buckets[index];
@@ -104,14 +105,18 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
                 ) {
             return bucket;
         }
-        // printf("After check\n");
 
 #if DEBUG
         table->num_collisions++;
 #endif
 
         // linear probing
-        index = (index + 1) & (table->capacity - 1);
+        index += 1;
+        // index = (index + 1) & (table->capacity - 1);
+
+        // quadratic probing
+        // index += 1 << num_iterations++;
+        index &= (table->capacity - 1);
     }
 }
 
