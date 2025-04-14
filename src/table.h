@@ -7,12 +7,11 @@
 
 #define DEBUG 1
 
-// typedef union {
-// } KeyType;
-
 typedef enum {
     VAL_VOID,
-    VAL_INT
+    VAL_INT,
+    VAL_FLOAT,
+    VAL_DOUBLE
 } ValueType;
 
 typedef struct {
@@ -20,6 +19,8 @@ typedef struct {
     union {
         void* val_void;
         int val_int;
+        float val_float;
+        double val_double;
     } as;
 } Value;
 
@@ -29,6 +30,12 @@ typedef struct {
     const char* key;
     Value value;
 } BucketStr;
+
+typedef struct {
+    int key;
+    bool occupied; // can't represent an invalid value with an int
+    Value value;
+} BucketInt;
 
 typedef struct {
     uint32_t count;
@@ -41,19 +48,42 @@ typedef struct {
 #endif
 } HashTableStr;
 
+typedef struct {
+    uint32_t count;
+    uint32_t capacity;
+    BucketInt* buckets;
+    uint32_t (*hash_func)(int key);
+    uint32_t load_factor;
+#if DEBUG
+    int num_collisions;
+#endif
+} HashTableInt;
+
 // hash functions
 uint32_t FNV_1a(const char* key, size_t key_length);
+uint32_t hash_int(int key);
 
 // table methods
-void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key, size_t key_length));
-void hashtable_str_free(HashTableStr* table);
-bool hashtable_str_remove(HashTableStr* table, const char* key, size_t key_length);
-bool hashtable_str_get(HashTableStr* table, const char* key, size_t key_length, Value* value);
-void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, Value value);
+void ht_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key, size_t key_length));
+void ht_str_free(HashTableStr* table);
+bool ht_str_remove(HashTableStr* table, const char* key, size_t key_length);
+bool ht_str_get(HashTableStr* table, const char* key, size_t key_length, Value* value);
+void ht_str_set(HashTableStr* table, const char* key, size_t key_length, Value value);
 
 // debug
-void hashtable_str_print(HashTableStr* table);
-void hashtable_sort(HashTableStr* table, int (*compare)(const void* b1, const void* b2));
+void ht_str_print(HashTableStr* table);
+void ht_str_sort(HashTableStr* table, int (*compare)(const void* b1, const void* b2));
 void print_key(const char* key, size_t length);
+
+// int key table (for now I keep them separate because I don't wanna deal with void pointers in the key
+void ht_int_init(HashTableInt* table, uint32_t (*hash_func)(int key));
+void ht_int_free(HashTableInt* table);
+bool ht_int_remove(HashTableInt* table, int key);
+bool ht_int_get(HashTableInt* table, int key, Value* value);
+void ht_int_set(HashTableInt* table, int key, Value value);
+
+// debug
+void ht_int_print(HashTableInt* table);
+void ht_int_sort(HashTableInt* table, int (*compare)(const void* b1, const void* b2));
 
 #endif // TABLE_H

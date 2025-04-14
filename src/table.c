@@ -36,7 +36,14 @@ uint32_t FNV_1a(const char* key, size_t key_length) {
     return hash;
 }
 
-static void hashtable_str_grow(HashTableStr* table) {
+uint32_t hash_int(int key) {
+    uint32_t hash = ((key >> 16) ^ key) * 0x45d9f3b;
+    hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+    hash = (hash >> 16) ^ hash;
+    return hash;
+}
+
+static void ht_str_grow(HashTableStr* table) {
     uint32_t old_capacity = table->capacity;
     if (table->capacity == 0) {
         table->capacity = 8;
@@ -55,35 +62,35 @@ static void hashtable_str_grow(HashTableStr* table) {
     for (uint32_t i = 0; i < old_capacity; i++) {
         BucketStr* bucket = &old_buckets[i];
         if (bucket->key != NULL) {
-            hashtable_str_set(table, bucket->key, bucket->key_length, bucket->value);
+            ht_str_set(table, bucket->key, bucket->key_length, bucket->value);
         }
     }
 
     FREE(old_buckets);
 }
 
-void hashtable_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key, size_t key_length)) {
+void ht_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key, size_t key_length)) {
     table->count = 0;
     table->capacity = 0;
     table->buckets = NULL;
     table->load_factor = 70;
     if (hash_func == NULL) {
         // default hash function
-        table->hash_func = &FNV_1a;
+        table->hash_func = FNV_1a;
     } else {
         table->hash_func = hash_func;
     }
-    hashtable_str_grow(table);
+    ht_str_grow(table);
 #if DEBUG
     table->num_collisions = 0;
 #endif
 }
 
-void hashtable_str_free(HashTableStr* table) {
+void ht_str_free(HashTableStr* table) {
     FREE(table->buckets);
 }
 
-static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint32_t hash, uint32_t length) {
+static BucketStr* ht_str_find(HashTableStr* table, const char* key, uint32_t hash, uint32_t length) {
     uint32_t index = hash & (table->capacity - 1); // mod of 2^n is equal to the last n bits
 
     int num_iterations = 0;
@@ -120,11 +127,11 @@ static BucketStr* hashtable_str_find(HashTableStr* table, const char* key, uint3
     }
 }
 
-bool hashtable_str_remove(HashTableStr* table, const char* key, size_t key_length) {
+bool ht_str_remove(HashTableStr* table, const char* key, size_t key_length) {
     if (table->count == 0) 
         return false;
     uint32_t hash = table->hash_func(key, key_length);
-    BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
+    BucketStr* bucket = ht_str_find(table, key, hash, key_length);
     if (bucket->key == NULL)
         return false;
 
@@ -134,24 +141,24 @@ bool hashtable_str_remove(HashTableStr* table, const char* key, size_t key_lengt
     return true;
 }
 
-bool hashtable_str_get(HashTableStr* table, const char* key, size_t key_length, Value* value) {
+bool ht_str_get(HashTableStr* table, const char* key, size_t key_length, Value* value) {
     if (table->count == 0)
         return false;
     uint32_t hash = table->hash_func(key, key_length);
-    BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
+    BucketStr* bucket = ht_str_find(table, key, hash, key_length);
     if (bucket->key == NULL)
         return false;
     *value = bucket->value;
     return true;
 }
 
-void hashtable_str_set(HashTableStr* table, const char* key, size_t key_length, Value value) {
+void ht_str_set(HashTableStr* table, const char* key, size_t key_length, Value value) {
     if (CALC_LOAD_FACTOR(table) >= table->load_factor) {
-        hashtable_str_grow(table);
+        ht_str_grow(table);
     }
 
     uint32_t hash = table->hash_func(key, key_length);
-    BucketStr* bucket = hashtable_str_find(table, key, hash, key_length);
+    BucketStr* bucket = ht_str_find(table, key, hash, key_length);
 
     if (bucket->key == NULL && bucket->value.as.val_void == NULL) {
         // new item
@@ -172,7 +179,7 @@ void print_key(const char* key, size_t length) {
     }
 }
 
-void hashtable_str_print(HashTableStr* table) {
+void ht_str_print(HashTableStr* table) {
     printf("===== TABLE =====\n");
     for (uint32_t i = 0; i < table->capacity; i++) {
         BucketStr* bucket = &table->buckets[i];
@@ -195,6 +202,133 @@ void hashtable_str_print(HashTableStr* table) {
     printf("=================\n");
 }
 
-void hashtable_sort(HashTableStr* table, int (*compare)(const void* b1, const void* b2)) {
+void ht_str_sort(HashTableStr* table, int (*compare)(const void* b1, const void* b2)) {
     qsort(table->buckets, table->capacity, sizeof *table->buckets, compare);
+}
+
+
+// int implementation
+
+static void ht_int_grow(HashTableInt* table) {
+    uint32_t old_capacity = table->capacity;
+    if (table->capacity == 0) {
+        table->capacity = 8;
+    } else {
+        table->capacity *= 2;
+    }
+    BucketInt* old_buckets = table->buckets;
+    table->buckets = CALLOC(table->capacity, sizeof *table->buckets);
+    if (table->buckets == NULL) {
+        printf("ERROR: out of memory, aborting.\n");
+        exit(1);
+    }
+
+    // create new table from scratch (copy old elements into new table)
+    table->count = 0;
+    for (uint32_t i = 0; i < old_capacity; i++) {
+        BucketInt* bucket = &old_buckets[i];
+        if (bucket->occupied) {
+            ht_int_set(table, bucket->key, bucket->value);
+        }
+    }
+
+    FREE(old_buckets);
+}
+
+void ht_int_init(HashTableInt* table, uint32_t (*hash_func)(int key)) {
+    table->count = 0;
+    table->capacity = 0;
+    table->buckets = NULL;
+    table->load_factor = 70;
+    if (hash_func == NULL) {
+        // default hash function
+        table->hash_func = hash_int;
+    } else {
+        table->hash_func = hash_func;
+    }
+    ht_int_grow(table);
+#if DEBUG
+    table->num_collisions = 0;
+#endif
+}
+
+void ht_int_free(HashTableInt* table) {
+    FREE(table->buckets);
+}
+
+static BucketInt* ht_int_find(HashTableInt* table, int key, uint32_t hash) {
+    uint32_t index = hash & (table->capacity - 1); // mod of 2^n is equal to the last n bits
+
+    int num_iterations = 0;
+    for (;;) {
+        BucketInt* tombstone = NULL;
+        BucketInt* bucket = &table->buckets[index];
+
+        // printf("Before check\n");
+        if (!bucket->occupied) {
+            if (bucket->value.as.val_void == NULL) {
+                return tombstone == NULL ? bucket : tombstone;
+            } else {
+                if (tombstone == NULL) tombstone = bucket;
+            }
+        } else if (bucket->key == key) {
+            return bucket;
+        }
+
+#if DEBUG
+        table->num_collisions++;
+#endif
+
+        // linear probing
+        index += 1;
+        // index = (index + 1) & (table->capacity - 1);
+
+        // quadratic probing
+        // index += 1 << num_iterations++;
+        index &= (table->capacity - 1);
+    }
+}
+
+bool ht_int_remove(HashTableInt* table, int key) {
+    if (table->count == 0) 
+        return false;
+    uint32_t hash = table->hash_func(key);
+    BucketInt* bucket = ht_int_find(table, key, hash);
+    if (!bucket->occupied)
+        return false;
+
+    // place tombstone
+    bucket->occupied = false;
+    bucket->value.as.val_int = 1;
+    return true;
+}
+
+bool ht_int_get(HashTableInt* table, int key, Value* value) {
+    if (table->count == 0)
+        return false;
+    uint32_t hash = table->hash_func(key);
+    BucketInt* bucket = ht_int_find(table, key, hash);
+    if (!bucket->occupied)
+        return false;
+    *value = bucket->value;
+    return true;
+}
+
+void ht_int_set(HashTableInt* table, int key, Value value) {
+    if (CALC_LOAD_FACTOR(table) >= table->load_factor) {
+        ht_int_grow(table);
+    }
+
+    uint32_t hash = table->hash_func(key);
+    BucketInt* bucket = ht_int_find(table, key, hash);
+
+    if (!bucket->occupied && bucket->value.as.val_void == NULL) {
+        // new item
+        table->count++;
+    }
+    
+    // insert/set new value
+    bucket->key = key;
+    bucket->value = value;
+    bucket->occupied = true;
 }

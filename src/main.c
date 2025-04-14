@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 
+
 static double clock_timestamp(void) {
     // returns timestamp in seconds since unix epoch
     struct timespec t;
@@ -30,48 +31,48 @@ static void value_print(char* value, const char* key) {
 
 static void test_table(void) {
     HashTableStr table;
-    hashtable_str_init(&table, NULL);
+    ht_str_init(&table, NULL);
 
     char foo[] = "foo";
     char bar[] = "bar";
 
-    hashtable_str_set(&table, foo, 3, (Value) {.type=VAL_VOID, .as.val_void=foo});
-    hashtable_str_set(&table, bar, 3, (Value) {.type=VAL_VOID, .as.val_void=bar});
+    ht_str_set(&table, foo, 3, (Value) {.type=VAL_VOID, .as.val_void=foo});
+    ht_str_set(&table, bar, 3, (Value) {.type=VAL_VOID, .as.val_void=bar});
 
     Value val = {.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "foo", 3, &val);
+    ht_str_get(&table, "foo", 3, &val);
     value_print(val.as.val_void, "foo");
 
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "bar", 3, &val);
+    ht_str_get(&table, "bar", 3, &val);
     value_print(val.as.val_void, "bar");
 
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "baz", 3, &val);
+    ht_str_get(&table, "baz", 3, &val);
     value_print(val.as.val_void, "baz");
 
     char baz[] = "baz";
-    hashtable_str_set(&table, baz, 3, (Value) {.type=VAL_VOID, .as.val_void=baz});
+    ht_str_set(&table, baz, 3, (Value) {.type=VAL_VOID, .as.val_void=baz});
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_get(&table, "baz", 3, &val);
+    ht_str_get(&table, "baz", 3, &val);
     value_print(val.as.val_void, "baz");
 
     val = (Value){.type=VAL_VOID, .as.val_void=NULL};
-    hashtable_str_remove(&table, baz, 3);
-    hashtable_str_get(&table, "baz", 3, &val);
+    ht_str_remove(&table, baz, 3);
+    ht_str_get(&table, "baz", 3, &val);
     value_print(val.as.val_void, "baz");
 
 #if DEBUG
     printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
 #endif
 
-    hashtable_str_print(&table);
-    hashtable_str_free(&table);
+    ht_str_print(&table);
+    ht_str_free(&table);
 }
 
 // static void test_table_shakespeare(void) {
 //     HashTableStr table;
-//     hashtable_str_init(&table, NULL);
+//     ht_str_init(&table, NULL);
 //
 //     FILE *fp = fopen("./shakespeare.txt", "r");
 //     if (!fp) {
@@ -83,10 +84,10 @@ static void test_table(void) {
 //     long nread;
 //     size_t len = 0;
 //     while ((nread = getline(&line, &len, fp)) != -1) {
-//         hashtable_str_set(&table, line, line);
+//         ht_str_set(&table, line, line);
 //         char* value;
-//         bool found = hashtable_str_get(&table, line, (void**)&value);
-//         /*hashtable_str_print(&table);*/
+//         bool found = ht_str_get(&table, line, (void**)&value);
+//         /*ht_str_print(&table);*/
 // #if DEBUG
 //         printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
 // #endif
@@ -97,14 +98,14 @@ static void test_table(void) {
 //     rewind(fp);
 //     while ((nread = getline(&line, &len, fp)) != -1) {
 //         char* value;
-//         bool found = hashtable_str_get(&table, line, (void**)&value);
+//         bool found = ht_str_get(&table, line, (void**)&value);
 //         assert(found);
 //     }
 //
 // #if DEBUG
 //     printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
 // #endif
-//     hashtable_str_free(&table);
+//     ht_str_free(&table);
 // }
 
 // reads all file into memory, caller should free it
@@ -197,7 +198,7 @@ static void test_word_count(void) {
     Tokenizer tokenizer;
     tokenizer_init(&tokenizer, content, file_length);
     HashTableStr table;
-    hashtable_str_init(&table, NULL);
+    ht_str_init(&table, NULL);
 
     double start_ts = clock_timestamp();
     for (;;) {
@@ -207,9 +208,9 @@ static void test_word_count(void) {
         }
 
         Value value = { .type = VAL_INT, .as.val_int = 0 };
-        hashtable_str_get(&table, token.start, token.length, &value);
+        ht_str_get(&table, token.start, token.length, &value);
         value.as.val_int++;
-        hashtable_str_set(&table, token.start, token.length, value);
+        ht_str_set(&table, token.start, token.length, value);
     }
     double end_ts = clock_timestamp();
 
@@ -224,7 +225,7 @@ static void test_word_count(void) {
 
 #if 0
     // print top 20 items
-    hashtable_sort(&table, compare_descending);
+    ht_str_sort(&table, compare_descending);
     size_t max_tops = 100;
     for (size_t i = 0; i < max_tops && i < table.capacity; i++) {
         BucketStr* bucket = &table.buckets[i];
@@ -244,14 +245,69 @@ static void test_word_count(void) {
 #endif
 
     free(content);
-    hashtable_str_free(&table);
+    ht_str_free(&table);
 }
+
+static void test_int(void) {
+    HashTableInt table;
+    ht_int_init(&table, NULL);
+
+    double start_ts = clock_timestamp();
+    for (;;) {
+        TokenStr token = tokenize_str(&tokenizer, content);
+        if (token.start == NULL) {
+            break;
+        }
+
+        Value value = { .type = VAL_INT, .as.val_int = 0 };
+        ht_str_get(&table, token.start, token.length, &value);
+        value.as.val_int++;
+        ht_str_set(&table, token.start, token.length, value);
+    }
+    double end_ts = clock_timestamp();
+
+    // num of keys
+    int word_count = 0;
+    for (size_t i = 0; i < table.capacity; i++) {
+        if (table.buckets[i].key != NULL) {
+            word_count++;
+        }
+    }
+    printf("%d unique words\n", word_count);
+
+#if 0
+    // print top 20 items
+    ht_str_sort(&table, compare_descending);
+    size_t max_tops = 100;
+    for (size_t i = 0; i < max_tops && i < table.capacity; i++) {
+        BucketStr* bucket = &table.buckets[i];
+        if (bucket->key != NULL) {
+            print_key(bucket->key, bucket->key_length);
+            if (bucket->value.type == VAL_INT) {
+                printf(": %d\n", bucket->value.as.val_int);
+            }
+        }
+    }
+#endif
+
+    printf("Elapsed: %fs\n", end_ts - start_ts);
+
+#if DEBUG
+    printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
+#endif
+
+    free(content);
+    ht_str_free(&table);
+}
+
 
 int main(void)
 {
     // test_table_shakespeare();
     // test_table();
+    srand(time(NULL));
     test_word_count();
+    test_int();
     return 0;
 }
 
