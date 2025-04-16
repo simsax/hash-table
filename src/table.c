@@ -36,10 +36,19 @@ uint32_t FNV_1a(const char* key, size_t key_length) {
     return hash;
 }
 
-uint32_t hash_int(int key) {
+uint32_t hash_int32(int key) {
     uint32_t hash = ((key >> 16) ^ key) * 0x45d9f3b;
     hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
     hash = (hash >> 16) ^ hash;
+    return hash;
+}
+
+uint64_t hash_int64(int key) {
+    uint64_t hash = key ^ (key >> 30);
+    hash *= 0xbf58476d1ce4e5b9U;
+    hash ^= hash >> 27;
+    hash *= 0x94d049bb133111ebU;
+    hash ^= hash >> 31;
     return hash;
 }
 
@@ -69,18 +78,25 @@ static void ht_str_grow(HashTableStr* table) {
     FREE(old_buckets);
 }
 
-void ht_str_init(HashTableStr* table, uint32_t (*hash_func)(const char* key, size_t key_length)) {
+void ht_str_init(HashTableStr* table, uint32_t size, uint32_t load_factor, uint32_t (*hash_func)(const char* key, size_t key_length)) {
     table->count = 0;
-    table->capacity = 0;
     table->buckets = NULL;
-    table->load_factor = 70;
+    table->load_factor = load_factor;
     if (hash_func == NULL) {
         // default hash function
         table->hash_func = FNV_1a;
     } else {
         table->hash_func = hash_func;
     }
-    ht_str_grow(table);
+
+    // init table
+    table->capacity = size;
+    table->buckets = CALLOC(table->capacity, sizeof *table->buckets);
+    if (table->buckets == NULL) {
+        printf("ERROR: out of memory, aborting.\n");
+        exit(1);
+    }
+
 #if DEBUG
     table->num_collisions = 0;
 #endif
@@ -235,18 +251,24 @@ static void ht_int_grow(HashTableInt* table) {
     FREE(old_buckets);
 }
 
-void ht_int_init(HashTableInt* table, uint32_t (*hash_func)(int key)) {
+void ht_int_init(HashTableInt* table, size_t size, uint32_t load_factor, uint64_t (*hash_func)(int key)) {
     table->count = 0;
-    table->capacity = 0;
     table->buckets = NULL;
-    table->load_factor = 70;
+    table->load_factor = load_factor;
     if (hash_func == NULL) {
         // default hash function
-        table->hash_func = hash_int;
+        table->hash_func = hash_int64;
     } else {
         table->hash_func = hash_func;
     }
-    ht_int_grow(table);
+
+    // init table
+    table->capacity = size;
+    table->buckets = CALLOC(table->capacity, sizeof *table->buckets);
+    if (table->buckets == NULL) {
+        printf("ERROR: out of memory, aborting.\n");
+        exit(1);
+    }
 #if DEBUG
     table->num_collisions = 0;
 #endif
@@ -264,7 +286,6 @@ static BucketInt* ht_int_find(HashTableInt* table, int key, uint32_t hash) {
         BucketInt* tombstone = NULL;
         BucketInt* bucket = &table->buckets[index];
 
-        // printf("Before check\n");
         if (!bucket->occupied) {
             if (bucket->value.as.val_void == NULL) {
                 return tombstone == NULL ? bucket : tombstone;
@@ -332,3 +353,21 @@ void ht_int_set(HashTableInt* table, int key, Value value) {
     bucket->value = value;
     bucket->occupied = true;
 }
+
+void ht_int_print(HashTableInt* table) {
+    printf("===== TABLE =====\n");
+    for (uint32_t i = 0; i < table->capacity; i++) {
+        BucketInt* bucket = &table->buckets[i];
+        if (bucket->occupied) {
+            printf("%d: %d\n", bucket->key, bucket->value.as.val_int);
+        } else {
+            if (bucket->value.as.val_void == NULL) {
+                printf("NULL\n");
+            } else {
+                printf("[Tombstone]\n");
+            }
+        }
+    }
+    printf("=================\n");
+}
+

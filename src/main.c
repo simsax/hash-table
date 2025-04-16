@@ -31,7 +31,7 @@ static void value_print(char* value, const char* key) {
 
 static void test_table(void) {
     HashTableStr table;
-    ht_str_init(&table, NULL);
+    ht_str_init(&table, 8, 70, NULL);
 
     char foo[] = "foo";
     char bar[] = "bar";
@@ -72,7 +72,7 @@ static void test_table(void) {
 
 // static void test_table_shakespeare(void) {
 //     HashTableStr table;
-//     ht_str_init(&table, NULL);
+//     ht_str_init(&table, 8, 70, NULL);
 //
 //     FILE *fp = fopen("./shakespeare.txt", "r");
 //     if (!fp) {
@@ -198,7 +198,7 @@ static void test_word_count(void) {
     Tokenizer tokenizer;
     tokenizer_init(&tokenizer, content, file_length);
     HashTableStr table;
-    ht_str_init(&table, NULL);
+    ht_str_init(&table, 8, 70, NULL);
 
     double start_ts = clock_timestamp();
     for (;;) {
@@ -248,65 +248,40 @@ static void test_word_count(void) {
     ht_str_free(&table);
 }
 
-static void test_int(void) {
+static void do_table_size(size_t table_size) {
     HashTableInt table;
-    ht_int_init(&table, NULL);
+    uint32_t load_factor = 70;
+    size_t to_add = table_size * load_factor / 100;
+
+    ht_int_init(&table, table_size, load_factor, NULL);
 
     double start_ts = clock_timestamp();
-    for (;;) {
-        TokenStr token = tokenize_str(&tokenizer, content);
-        if (token.start == NULL) {
-            break;
-        }
-
-        Value value = { .type = VAL_INT, .as.val_int = 0 };
-        ht_str_get(&table, token.start, token.length, &value);
-        value.as.val_int++;
-        ht_str_set(&table, token.start, token.length, value);
+    for (size_t i = 0; i < to_add; i++) {
+        int r = rand(); // RAND_MAX range should be good enough for testing I guess
+        ht_int_set(&table, i, (Value){.type=VAL_INT, .as.val_int = i});
     }
     double end_ts = clock_timestamp();
 
-    // num of keys
-    int word_count = 0;
-    for (size_t i = 0; i < table.capacity; i++) {
-        if (table.buckets[i].key != NULL) {
-            word_count++;
-        }
+    printf("Table size: %zu, count: %zu, collisions: %zu, collisions / count: %.1f\n", table_size, table.count, table.num_collisions, (double)table.num_collisions / table.count);
+    ht_int_free(&table);
+}
+
+static void test_int(void) {
+    uint32_t table_size = 512;
+    for (int i = 0; i < 15; i++) {
+        do_table_size(table_size);
+        table_size *= 2;
     }
-    printf("%d unique words\n", word_count);
-
-#if 0
-    // print top 20 items
-    ht_str_sort(&table, compare_descending);
-    size_t max_tops = 100;
-    for (size_t i = 0; i < max_tops && i < table.capacity; i++) {
-        BucketStr* bucket = &table.buckets[i];
-        if (bucket->key != NULL) {
-            print_key(bucket->key, bucket->key_length);
-            if (bucket->value.type == VAL_INT) {
-                printf(": %d\n", bucket->value.as.val_int);
-            }
-        }
-    }
-#endif
-
-    printf("Elapsed: %fs\n", end_ts - start_ts);
-
-#if DEBUG
-    printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
-#endif
-
-    free(content);
-    ht_str_free(&table);
+    // TODO: numbers look to good to be true, make sure that the collisions are counted correctly
 }
 
 
 int main(void)
 {
+    srand(time(NULL));
     // test_table_shakespeare();
     // test_table();
-    srand(time(NULL));
-    test_word_count();
+    /*test_word_count();*/
     test_int();
     return 0;
 }
