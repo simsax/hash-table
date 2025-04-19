@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: custom allocator
 #define FREE(x) free(x)
 #define CALLOC(capacity, elemsize) calloc((capacity), (elemsize))
 #define CALC_LOAD_FACTOR(table) (int)(((float)((table)->count + 1) / (table)->capacity) * 100)
@@ -16,16 +15,6 @@ static char* _strdup(const char* str, size_t length) {
     memcpy(new_str, str, size);
     return new_str;
 }
-
-// uint32_t FNV_1a(const char* key) {
-//     uint32_t hash = 2166136261u;
-//     int length = strlen(key);
-//     for (int i = 0; i < length; i++) {
-//         hash ^= (uint8_t)key[i];
-//         hash *= 16777619;
-//     }
-//     return hash;
-// }
 
 uint32_t FNV_1a(const char* key, size_t key_length) {
     uint32_t hash = 2166136261u;
@@ -114,7 +103,6 @@ static BucketStr* ht_str_find(HashTableStr* table, const char* key, uint32_t has
         BucketStr* tombstone = NULL;
         BucketStr* bucket = &table->buckets[index];
 
-        // printf("Before check\n");
         if (bucket->key == NULL) {
             if (bucket->value.as.val_void == NULL) {
                 return tombstone == NULL ? bucket : tombstone;
@@ -138,7 +126,7 @@ static BucketStr* ht_str_find(HashTableStr* table, const char* key, uint32_t has
         // index = (index + 1) & (table->capacity - 1);
 
         // quadratic probing
-        // index += 1 << num_iterations++;
+        /*index += 1 << num_iterations++;*/
         index &= (table->capacity - 1);
     }
 }
@@ -255,6 +243,7 @@ void ht_int_init(HashTableInt* table, size_t size, uint32_t load_factor, uint64_
     table->count = 0;
     table->buckets = NULL;
     table->load_factor = load_factor;
+    table->first_collision = false;
     if (hash_func == NULL) {
         // default hash function
         table->hash_func = hash_int64;
@@ -298,14 +287,17 @@ static BucketInt* ht_int_find(HashTableInt* table, int key, uint32_t hash) {
 
 #if DEBUG
         table->num_collisions++;
+        /*if (!table->first_collision) {*/
+        /*    table->first_collision = true;*/
+        /*    printf("First collision happened at entry: %zu | capacity / no_collision_entries: %f \n", table->count, (double)table->capacity / table->count);*/
+        /*}*/
 #endif
 
         // linear probing
         index += 1;
-        // index = (index + 1) & (table->capacity - 1);
 
         // quadratic probing
-        // index += 1 << num_iterations++;
+        /*index += 1 << num_iterations++;*/
         index &= (table->capacity - 1);
     }
 }

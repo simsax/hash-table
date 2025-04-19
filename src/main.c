@@ -70,44 +70,6 @@ static void test_table(void) {
     ht_str_free(&table);
 }
 
-// static void test_table_shakespeare(void) {
-//     HashTableStr table;
-//     ht_str_init(&table, 8, 70, NULL);
-//
-//     FILE *fp = fopen("./shakespeare.txt", "r");
-//     if (!fp) {
-//        printf("ERROR: could not open file\n");
-//        exit(1);
-//     }
-//
-//     char* line = NULL;
-//     long nread;
-//     size_t len = 0;
-//     while ((nread = getline(&line, &len, fp)) != -1) {
-//         ht_str_set(&table, line, line);
-//         char* value;
-//         bool found = ht_str_get(&table, line, (void**)&value);
-//         /*ht_str_print(&table);*/
-// #if DEBUG
-//         printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
-// #endif
-//         assert(found);
-//     }
-//
-//     // read again, test that all the lines are in the hash table
-//     rewind(fp);
-//     while ((nread = getline(&line, &len, fp)) != -1) {
-//         char* value;
-//         bool found = ht_str_get(&table, line, (void**)&value);
-//         assert(found);
-//     }
-//
-// #if DEBUG
-//     printf("\nCount: %d\nCapacity: %d\nLoad: %d%%\nNum collisions: %d\n", table.count, table.capacity, (int)(table.count * 100 / (float) table.capacity), table.num_collisions);
-// #endif
-//     ht_str_free(&table);
-// }
-
 // reads all file into memory, caller should free it
 static char* read_all_file(const char* filepath, size_t* file_length) {
     FILE *fp = fopen(filepath, "r");
@@ -223,7 +185,7 @@ static void test_word_count(void) {
     }
     printf("%d unique words\n", word_count);
 
-#if 0
+#if 1
     // print top 20 items
     ht_str_sort(&table, compare_descending);
     size_t max_tops = 100;
@@ -255,34 +217,35 @@ static void do_table_size(size_t table_size) {
 
     ht_int_init(&table, table_size, load_factor, NULL);
 
-    double start_ts = clock_timestamp();
     for (size_t i = 0; i < to_add; i++) {
         int r = rand(); // RAND_MAX range should be good enough for testing I guess
-        ht_int_set(&table, i, (Value){.type=VAL_INT, .as.val_int = i});
+        ht_int_set(&table, r, (Value){.type=VAL_INT, .as.val_int = r});
+        /*Value v;*/
+        /*bool val = ht_int_get(&table, r, &v);*/
+        /*assert(val == true);*/
     }
-    double end_ts = clock_timestamp();
 
     printf("Table size: %zu, count: %zu, collisions: %zu, collisions / count: %.1f\n", table_size, table.count, table.num_collisions, (double)table.num_collisions / table.count);
     ht_int_free(&table);
 }
 
 static void test_int(void) {
+    double start_ts = clock_timestamp();
     uint32_t table_size = 512;
     for (int i = 0; i < 15; i++) {
         do_table_size(table_size);
         table_size *= 2;
     }
-    // TODO: numbers look to good to be true, make sure that the collisions are counted correctly
+    double end_ts = clock_timestamp();
+    printf("Total generation took: %.3fs\n", end_ts - start_ts);
 }
 
 
 int main(void)
 {
     srand(time(NULL));
-    // test_table_shakespeare();
-    // test_table();
-    /*test_word_count();*/
-    test_int();
+    test_word_count();
+    /*test_int();*/
     return 0;
 }
 

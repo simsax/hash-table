@@ -56,6 +56,7 @@ typedef struct {
     uint32_t load_factor;
 #if DEBUG
     size_t num_collisions;
+    bool first_collision; // birthday paradox test
 #endif
 } HashTableInt;
 
