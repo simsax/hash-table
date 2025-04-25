@@ -99,8 +99,8 @@ static BucketStr* ht_str_find(HashTableStr* table, const char* key, uint32_t has
     uint32_t index = hash & (table->capacity - 1); // mod of 2^n is equal to the last n bits
 
     int num_iterations = 0;
+    BucketStr* tombstone = NULL;
     for (;;) {
-        BucketStr* tombstone = NULL;
         BucketStr* bucket = &table->buckets[index];
 
         if (bucket->key == NULL) {
@@ -271,8 +271,8 @@ static BucketInt* ht_int_find(HashTableInt* table, int key, uint32_t hash) {
     uint32_t index = hash & (table->capacity - 1); // mod of 2^n is equal to the last n bits
 
     int num_iterations = 0;
+    BucketInt* tombstone = NULL;
     for (;;) {
-        BucketInt* tombstone = NULL;
         BucketInt* bucket = &table->buckets[index];
 
         if (!bucket->occupied) {
